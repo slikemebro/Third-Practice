@@ -1,5 +1,7 @@
 package com.ua.glebkorobov.jms;
 
+import com.ua.glebkorobov.GetProperty;
+import com.ua.glebkorobov.exceptions.ConnectException;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.jms.pool.PooledConnectionFactory;
 
@@ -8,21 +10,28 @@ import javax.jms.JMSException;
 
 public class ConnectToJMS {
 
+    private static GetProperty property = new GetProperty("myProp.properties");
+
     private final static String WIRE_LEVEL_ENDPOINT
-            = "ssl://b-b4af96b1-01ff-4af7-811e-1d81e6fd3f52-1.mq.us-west-2.amazonaws.com:61617";
-    private final static String ACTIVE_MQ_USERNAME = "slikemebro";
-    private final static String ACTIVE_MQ_PASSWORD = "Gfnhjy18011001";
+            = property.getValueFromProperty("endpoint");
+    private final static String ACTIVE_MQ_USERNAME = property.getValueFromProperty("username");
+    private final static String ACTIVE_MQ_PASSWORD = property.getValueFromProperty("password");
 
     private PooledConnectionFactory pooledConnectionFactory;
 
-    public Connection connect() throws JMSException {
+    public Connection connect() {
         final ActiveMQConnectionFactory connectionFactory =
                 createActiveMQConnectionFactory();
         pooledConnectionFactory = createPooledConnectionFactory(connectionFactory);
 
-        final Connection connection = pooledConnectionFactory
-                .createConnection();
-        connection.start();
+        final Connection connection;
+        try {
+            connection = pooledConnectionFactory
+                    .createConnection();
+            connection.start();
+        } catch (JMSException e) {
+            throw new ConnectException(e);
+        }
 
         return connection;
     }

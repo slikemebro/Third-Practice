@@ -1,21 +1,40 @@
 package com.ua.glebkorobov.dto;
 
+import com.opencsv.bean.CsvBindByName;
+import com.opencsv.bean.CsvBindByPosition;
+import com.opencsv.bean.CsvIgnore;
+import jakarta.validation.ConstraintViolation;
 import jakarta.validation.constraints.*;
-import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.lang3.RandomUtils;
 
 import java.time.LocalDateTime;
-import java.util.Random;
+import java.util.Set;
 
-@NoArgsConstructor
+
 public class Pojo {
-    String name = RandomStringUtils.randomAlphabetic(1, 15);
 
-    long count1 = new Random().nextLong() & Integer.MAX_VALUE;
-    long count = RandomUtils.nextLong(1, 10000);
-    LocalDateTime dateTime = LocalDateTime.now();
+    @CsvBindByName(column = "NAME")
+    @CsvBindByPosition(position = 0)
+    private String name;
 
+    @CsvBindByName(column = "COUNT")
+    @CsvBindByPosition(position = 1)
+    private long count = 0;
+
+    private static long countAll = 0;
+
+    @CsvBindByName(column = "ERRORS")
+    @CsvBindByPosition(position = 2)
+    private Set<ConstraintViolation<Pojo>> errors;
+
+    @CsvIgnore
+    private LocalDateTime dateTime;
+
+    public Pojo() {
+        dateTime = LocalDateTime.now();
+        count = countAll++;
+        name = RandomStringUtils.randomAlphabetic(4, 15);
+    }
 
     @NotNull(message = "First name is compulsory")
     @Min(10)
@@ -30,8 +49,7 @@ public class Pojo {
     @NotNull(message = "First name is compulsory")
     @NotBlank(message = "First name is compulsory")
     @Size(min = 7)
-    @Pattern(regexp = "[a-z-A-Z]*", message = "Name has invalid characters")
-    @Pattern(regexp = "a", message = "Name doesn't have character a")
+    @Pattern(regexp = ".*a.*", message = "Name doesn't have character a")
     public String getName() {
         return name;
     }
@@ -49,6 +67,14 @@ public class Pojo {
 
     public void setDateTime(LocalDateTime dateTime) {
         this.dateTime = dateTime;
+    }
+
+    public Set<ConstraintViolation<Pojo>> getErrors() {
+        return errors;
+    }
+
+    public void setErrors(Set<ConstraintViolation<Pojo>> errors) {
+        this.errors = errors;
     }
 
     @Override
