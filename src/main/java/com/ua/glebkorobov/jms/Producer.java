@@ -42,7 +42,6 @@ public class Producer {
         ObjectMapper mapper = JsonMapper.builder()
                 .addModule(new JavaTimeModule())
                 .build();
-//        mapper.findAndRegisterModules();
 
         for (Object o : list) {
             TextMessage producerMessage = producerSession.createTextMessage(mapper.writeValueAsString(o));

@@ -1,5 +1,6 @@
 package com.ua.glebkorobov.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.opencsv.bean.CsvBindByName;
 import com.opencsv.bean.CsvBindByPosition;
 import com.opencsv.bean.CsvIgnore;
@@ -21,10 +22,12 @@ public class Pojo {
     @CsvBindByPosition(position = 1)
     private long count = 0;
 
+    @JsonIgnore
     private static long countAll = 0;
 
     @CsvBindByName(column = "ERRORS")
     @CsvBindByPosition(position = 2)
+    @JsonIgnore
     private Set<ConstraintViolation<Pojo>> errors;
 
     @CsvIgnore
@@ -34,6 +37,13 @@ public class Pojo {
         dateTime = LocalDateTime.now();
         count = countAll++;
         name = RandomStringUtils.randomAlphabetic(4, 15);
+    }
+
+    public Pojo(String name, long count, Set<ConstraintViolation<Pojo>> errors, LocalDateTime dateTime) {
+        this.name = name;
+        this.count = count;
+        this.errors = errors;
+        this.dateTime = dateTime;
     }
 
     @NotNull(message = "First name is compulsory")
