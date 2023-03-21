@@ -1,20 +1,35 @@
 package com.ua.glebkorobov;
 
-import static org.junit.Assert.assertTrue;
 
-import org.junit.Test;
+import com.ua.glebkorobov.dto.GeneratePojo;
+import com.ua.glebkorobov.jms.ConnectToJMS;
+import org.junit.jupiter.api.Test;
+
+import javax.jms.JMSException;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit test for simple App.
  */
-public class AppTest 
-{
+class AppTest {
     /**
      * Rigorous Test :-)
      */
     @Test
-    public void shouldAnswerWithTrue()
-    {
+    void shouldAnswerWithTrue() {
         assertTrue( true );
+    }
+
+    @Test
+    void testGeneratePojo() {
+        System.setProperty("count", "100");
+//        assertEquals(100, GeneratePojo.generate().size());
+    }
+
+    @Test
+    void testConnectToJMS() throws JMSException {
+        ConnectToJMS connectToJMS = new ConnectToJMS();
+        connectToJMS.connect();
     }
 }
