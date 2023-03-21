@@ -1,27 +1,36 @@
 package com.ua.glebkorobov.dto;
 
+import com.ua.glebkorobov.GetProperty;
+import com.ua.glebkorobov.jms.Producer;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.List;
-import java.util.stream.Collectors;
+import javax.jms.JMSException;
+import java.time.LocalDateTime;
+import java.util.Random;
 import java.util.stream.Stream;
 
 public class GeneratePojo {
 
     private static final Logger logger = LogManager.getLogger(GeneratePojo.class);
 
-    private static final String COUNT = "count";
+    private final GetProperty property = new GetProperty("myProp.properties");
 
-    private GeneratePojo() {
-        throw new IllegalStateException("Utility class");
-    }
 
-    public static List<Pojo> generate(){
-        logger.info("List of was generate and returned");
-        return Stream
-                .generate(Pojo::new)
-                .limit(Long.parseLong(System.getProperty(COUNT)))
-                .collect(Collectors.toList());
+    public long generateAndSendMessages() throws JMSException {
+        Producer producer = new Producer();
+        producer.createConnection();
+
+        logger.info("generate stream of pojo");
+
+        Stream.generate(() -> new Pojo(RandomStringUtils.randomAlphabetic(4, 15), new Random().nextLong(),
+                        LocalDateTime.now()))
+                .limit(Long.parseLong(property.getValueFromProperty("count")))
+                .forEach(producer::sendMessage);
+
+        producer.stop();
+
+        return producer.getCounter();
     }
 }

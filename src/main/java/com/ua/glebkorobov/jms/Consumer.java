@@ -1,66 +1,79 @@
 package com.ua.glebkorobov.jms;
 
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.ua.glebkorobov.GetProperty;
-import com.ua.glebkorobov.dto.Pojo;
+import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.jms.*;
-import java.util.ArrayList;
-import java.util.List;
 
 public class Consumer {
 
     private static final Logger logger = LogManager.getLogger(Consumer.class);
 
-    private GetProperty property = new GetProperty("myProp.properties");
+    private final GetProperty property = new GetProperty("myProp.properties");
 
-    public List<Pojo> receiveMessage() throws JMSException, JsonProcessingException {
-        ConnectToJMS connectToJMS = new ConnectToJMS();
-        Connection consumerConnection = connectToJMS.connect();
+    private MessageConsumer messageConsumer;
 
-        logger.info("Created connection to jms");
+    private Session consumerSession;
 
-        final Session consumerSession = consumerConnection
+    private Connection consumerConnection;
+
+
+    private final String myQueue = property.getValueFromProperty("queue_name");
+
+    public MessageConsumer createConnection() throws JMSException {
+        ActiveMQConnectionFactory connectionFactory =
+                createActiveMQConnectionFactory();
+
+        consumerConnection = connectionFactory.createConnection();
+        consumerConnection.start();
+
+        // Create a session.
+        consumerSession = consumerConnection
                 .createSession(false, Session.AUTO_ACKNOWLEDGE);
 
-        logger.info("Created session");
-
+        // Create a queue named "MyQueue".
         final Destination consumerDestination = consumerSession
-                .createQueue(property.getValueFromProperty("queue_name"));
+                .createQueue(myQueue);
 
-        logger.info("Created destination");
-
-        final MessageConsumer consumer = consumerSession
+        // Create a message consumer from the session to the queue.
+        messageConsumer = consumerSession
                 .createConsumer(consumerDestination);
 
-        logger.info("Created message consumer");
+        logger.info("Created consumer connection");
 
-        Message consumerMessage;
+        return messageConsumer;
+    }
 
-        List<Pojo> receivedMessages = new ArrayList<>();
+    public String receiveMessage() throws JMSException {
+        // Begin to wait for messages.
+        Message consumerMessage = messageConsumer.receive(1000);
 
-        ObjectMapper mapper = JsonMapper.builder()
-                .addModule(new JavaTimeModule())
-                .build();
-//        mapper.findAndRegisterModules();
+        // Receive the message when it arrives.
+        TextMessage consumerTextMessage = (TextMessage) consumerMessage;
+        return consumerTextMessage.getText();
+    }
 
-        while ((consumerMessage = consumer.receive(1000)) != null) {
-            TextMessage consumerTextMessage = (TextMessage) consumerMessage;
-            logger.info("Message received: {}", consumerTextMessage.getText());
-            receivedMessages.add(mapper.readValue(consumerTextMessage.getText(), Pojo.class));
-        }
-
-        consumer.close();
+    public Connection closeConnection() throws JMSException {
+        messageConsumer.close();
         consumerSession.close();
         consumerConnection.close();
-        connectToJMS.stop();
-
-        return receivedMessages;
+        logger.info("Closed consumer connection");
+        return consumerConnection;
     }
+
+
+    private ActiveMQConnectionFactory createActiveMQConnectionFactory() {
+        // Create a connection factory.
+        final ActiveMQConnectionFactory connectionFactory =
+                new ActiveMQConnectionFactory(property.getValueFromProperty("endpoint"));
+
+        // Pass the sign-in credentials.
+        connectionFactory.setUserName(property.getValueFromProperty("username"));
+        connectionFactory.setPassword(property.getValueFromProperty("password"));
+        return connectionFactory;
+    }
+
 }
