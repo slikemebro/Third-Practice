@@ -1,5 +1,6 @@
 package com.ua.glebkorobov;
 
+import com.ua.glebkorobov.exceptions.FileFindException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -8,7 +9,7 @@ import java.util.Locale;
 import java.util.Properties;
 
 public class GetProperty {
-    private String fileNameProperty;
+    private final String fileNameProperty;
     private static final Logger logger = LogManager.getLogger(GetProperty.class);
     private final Properties properties = new Properties();
 
@@ -25,23 +26,12 @@ public class GetProperty {
             logger.info("Getting properties");
         } catch (Exception e) {
             logger.warn("Properties hasn't found");
-            throw new RuntimeException("File hasn't found");
+            throw new FileFindException("File hasn't found");
         }
     }
 
     public String getValueFromProperty(String key) {
-        logger.info("Got value from properties");
+        logger.info("Got {} from properties", key);
         return properties.getProperty(key.toLowerCase(Locale.ROOT));
-    }
-
-    public String getFileNameProperty() {
-        logger.info("Got file name");
-        return fileNameProperty;
-    }
-
-    public void setFileNameProperty(String fileNameProperty) {
-        logger.info("Load properties with other name: {}", fileNameProperty);
-        this.fileNameProperty = fileNameProperty;
-        loadFile();
     }
 }

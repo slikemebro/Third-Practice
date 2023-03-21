@@ -6,53 +6,146 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.ua.glebkorobov.GetProperty;
 import com.ua.glebkorobov.dto.Pojo;
+import com.ua.glebkorobov.exceptions.CreateTextMessageException;
+import com.ua.glebkorobov.exceptions.SendMessageException;
+import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.activemq.jms.pool.PooledConnectionFactory;
+import org.apache.commons.lang3.time.StopWatch;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.jms.*;
-import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class Producer {
 
     private static final Logger logger = LogManager.getLogger(Producer.class);
 
-    private GetProperty property = new GetProperty("myProp.properties");
+    private final GetProperty property = new GetProperty("myProp.properties");
 
-    public void sendMessage(List<Pojo> list) throws JMSException, JsonProcessingException {
-        ConnectToJMS connectToJMS = new ConnectToJMS();
-        Connection producerConnection = connectToJMS.connect();
+    private StopWatch watch;
 
-        logger.info("Created connection to jms");
+    private MessageProducer messageProducer;
 
-        final Session producerSession = producerConnection
+    private Session producerSession;
+
+    private Connection producerConnection;
+
+    private PooledConnectionFactory pooledConnectionFactory;
+
+    private long counter = 0;
+
+    private final long timeMax = Long.parseLong(property.getValueFromProperty("time"));
+
+    private final long count = Long.parseLong(property.getValueFromProperty("count"));
+
+    private final String myQueue = property.getValueFromProperty("queue_name");
+
+
+    public MessageProducer createConnection() throws JMSException {
+        Destination producerDestination;
+        ActiveMQConnectionFactory connectionFactory =
+                createActiveMQConnectionFactory();
+        pooledConnectionFactory =
+                createPooledConnectionFactory(connectionFactory);
+        // Establish a connection for the producer.
+        producerConnection = pooledConnectionFactory
+                .createConnection();
+        producerConnection.start();
+
+        // Create a session.
+        producerSession = producerConnection
                 .createSession(false, Session.AUTO_ACKNOWLEDGE);
 
-        logger.info("Created session");
+        // Create a queue named "MyQueue".
+        producerDestination = producerSession
+                .createQueue(myQueue);
 
-        final Destination producerDestination = producerSession
-                .createQueue(property.getValueFromProperty("queue_name"));
+        // Create a producer from the session to the queue.
+        messageProducer = producerSession
+                .createProducer(producerDestination);
+        messageProducer.setDeliveryMode(DeliveryMode.NON_PERSISTENT);
 
-        logger.info("Created destination");
+        watch = StopWatch.createStarted();
 
-        final MessageProducer producer = producerSession.createProducer(producerDestination);
-        producer.setDeliveryMode(DeliveryMode.NON_PERSISTENT);
+        return messageProducer;
+    }
 
-        logger.info("Created message consumer");
+    public long sendMessage(Pojo pojo) {
 
         ObjectMapper mapper = JsonMapper.builder()
                 .addModule(new JavaTimeModule())
                 .build();
 
-        for (Object o : list) {
-            TextMessage producerMessage = producerSession.createTextMessage(mapper.writeValueAsString(o));
+        if (watch.getTime(TimeUnit.SECONDS) < timeMax ||
+                counter < count) {
+            TextMessage producerMessage;
+            try {
+                producerMessage = producerSession.createTextMessage(mapper.writeValueAsString(pojo));
+            } catch (JsonProcessingException | JMSException e) {
+                throw new CreateTextMessageException(e);
+            }
 
-            producer.send(producerMessage);
-            logger.info("Message sent.");
+            try {
+                messageProducer.send(producerMessage);
+            } catch (JMSException e) {
+                throw new SendMessageException(e);
+            }
+            counter++;
+        } else {
+            try {
+                messageProducer.send(producerSession.createTextMessage(property.getValueFromProperty("poison")));
+                logger.info("poison pill sent");
+            } catch (JMSException e) {
+                throw new SendMessageException(e);
+            }
         }
+        return counter;
 
-        producer.close();
+    }
+
+    public PooledConnectionFactory stop() throws JMSException {
+        double rps = (double) counter / watch.getTime(TimeUnit.SECONDS);
+        logger.info("counter = {}, time = {}, rps = {}", counter, watch.getTime(TimeUnit.SECONDS), rps);
+        try {
+            messageProducer.send(producerSession.createTextMessage(property.getValueFromProperty("poison")));
+        } catch (JMSException e) {
+            throw new SendMessageException(e);
+        }
+        logger.info("poison pill sent");
+        messageProducer.close();
         producerSession.close();
         producerConnection.close();
-        connectToJMS.stop();
+        pooledConnectionFactory.stop();
+        return pooledConnectionFactory;
+    }
+
+    private PooledConnectionFactory
+    createPooledConnectionFactory(ActiveMQConnectionFactory connectionFactory) {
+        // Create a pooled connection factory.
+        pooledConnectionFactory =
+                new PooledConnectionFactory();
+        pooledConnectionFactory.setConnectionFactory(connectionFactory);
+        pooledConnectionFactory.setMaxConnections(10);
+        return pooledConnectionFactory;
+    }
+
+    private ActiveMQConnectionFactory createActiveMQConnectionFactory() {
+        // Create a connection factory.
+        final ActiveMQConnectionFactory connectionFactory =
+                new ActiveMQConnectionFactory(property.getValueFromProperty("endpoint"));
+
+        // Pass the sign-in credentials.
+        connectionFactory.setUserName(property.getValueFromProperty("username"));
+        connectionFactory.setPassword(property.getValueFromProperty("password"));
+        return connectionFactory;
+    }
+
+    public long getCounter() {
+        return counter;
+    }
+
+    public long getCount() {
+        return count;
     }
 }
