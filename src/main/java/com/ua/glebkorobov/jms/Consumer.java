@@ -2,6 +2,7 @@ package com.ua.glebkorobov.jms;
 
 
 import com.ua.glebkorobov.GetProperty;
+import com.ua.glebkorobov.exceptions.CloseException;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,7 +24,7 @@ public class Consumer {
 
     private final String myQueue = property.getValueFromProperty("queue_name");
 
-    public MessageConsumer createConnection() throws JMSException {
+    public void createConnection() throws JMSException {
         ActiveMQConnectionFactory connectionFactory =
                 createActiveMQConnectionFactory();
 
@@ -43,8 +44,6 @@ public class Consumer {
                 .createConsumer(consumerDestination);
 
         logger.info("Created consumer connection");
-
-        return messageConsumer;
     }
 
     public String receiveMessage() throws JMSException {
@@ -56,12 +55,15 @@ public class Consumer {
         return consumerTextMessage.getText();
     }
 
-    public Connection closeConnection() throws JMSException {
-        messageConsumer.close();
-        consumerSession.close();
-        consumerConnection.close();
-        logger.info("Closed consumer connection");
-        return consumerConnection;
+    public void closeConnection() {
+        try {
+            messageConsumer.close();
+            consumerSession.close();
+            consumerConnection.close();
+            logger.info("Closed consumer connection");
+        }catch (Exception e){
+            throw new CloseException(e);
+        }
     }
 
 

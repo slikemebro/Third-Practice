@@ -1,6 +1,5 @@
 package com.ua.glebkorobov;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -18,7 +17,6 @@ import org.apache.logging.log4j.Logger;
 
 import javax.jms.JMSException;
 import java.io.FileWriter;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Set;
 
@@ -33,14 +31,10 @@ public class ValidationForPojo {
 
     private final Logger logger = LogManager.getLogger(ValidationForPojo.class);
 
-//    private CSVWriter invalidWriter;
-//    private CSVWriter validWriter;
+    private final Validator validator = createValidator();
 
-    public String valid() throws JMSException {
-        Validator validator = createValidator();
 
-        logger.info("Created validator");
-
+    public void receiveAndValid() throws JMSException {
         Consumer consumer = new Consumer();
         consumer.createConnection();
         logger.info("Created consumer and connection");
@@ -53,21 +47,23 @@ public class ValidationForPojo {
         invalidWriter.writeNext(new String[]{"Name", "Count", "Errors"});
         validWriter.writeNext(new String[]{"Name", "Count"});
 
+        Pojo pojo;
+        Set<ConstraintViolation<Pojo>> violations;
+
         while (true) {
             String message = consumer.receiveMessage();
             if (message.equals(poisonPill)) {
                 logger.info("Got poison pill : {}", poisonPill);
                 consumer.closeConnection();
-                return poisonPill;
+                break;
             }
 
-            Pojo pojo;
             try {
                 pojo = mapper.readValue(message, Pojo.class);
-            } catch (JsonProcessingException e) {
+            } catch (Exception e) {
                 throw new ParsePojoException(e);
             }
-            Set<ConstraintViolation<Pojo>> violations = validator.validate(pojo);
+            violations = valid(pojo);
 
             if (violations.isEmpty()) {
                 writeValidFile(pojo, validWriter);
@@ -75,7 +71,10 @@ public class ValidationForPojo {
                 writeInvalidFile(pojo, violations, invalidWriter);
             }
         }
+    }
 
+    public Set<ConstraintViolation<Pojo>> valid(Pojo pojo) {
+        return validator.validate(pojo);
     }
 
 
@@ -93,7 +92,7 @@ public class ValidationForPojo {
     public CSVWriter createInValidCsvWriter() {
         try {
             return new CSVWriter(new FileWriter(invalidPojoWriterFile));
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new CsvWriteException(e);
         }
     }
@@ -101,23 +100,19 @@ public class ValidationForPojo {
     public CSVWriter createValidCsvWriter() {
         try {
             return new CSVWriter(new FileWriter(validPojoWriterFile));
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new CsvWriteException(e);
         }
     }
 
-    public int writeInvalidFile(Pojo pojo, Set<ConstraintViolation<Pojo>> violations, CSVWriter invalidWriter) {
+    public void writeInvalidFile(Pojo pojo, Set<ConstraintViolation<Pojo>> violations, CSVWriter invalidWriter) {
         String error = Arrays.toString(createErrors(violations));
         invalidWriter.writeNext(new String[]{pojo.getName(), String.valueOf(pojo.getCount()),
                 "errors " + error});
-
-        return violations.size();
     }
 
-    public int writeValidFile(Pojo pojo, CSVWriter validWriter) {
+    public void writeValidFile(Pojo pojo, CSVWriter validWriter) {
         validWriter.writeNext(new String[]{pojo.getName(), String.valueOf(pojo.getCount())});
-
-        return 0;
     }
 
 

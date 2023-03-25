@@ -26,7 +26,7 @@ public class App {
 
         ValidationForPojo validationForPojo = new ValidationForPojo();
 
-        validationForPojo.valid();
+        validationForPojo.receiveAndValid();
 
     }
 }
