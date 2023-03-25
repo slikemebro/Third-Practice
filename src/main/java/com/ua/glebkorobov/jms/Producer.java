@@ -19,15 +19,15 @@ import java.util.concurrent.TimeUnit;
 
 public class Producer {
 
-    private static final Logger logger = LogManager.getLogger(Producer.class);
+    private final Logger logger = LogManager.getLogger(Producer.class);
 
     private final GetProperty property = new GetProperty("myProp.properties");
+
+    private Session producerSession;
 
     private StopWatch watch;
 
     private MessageProducer messageProducer;
-
-    private Session producerSession;
 
     private Connection producerConnection;
 
@@ -43,32 +43,33 @@ public class Producer {
 
 
     public MessageProducer createConnection() throws JMSException {
-        Destination producerDestination;
-        ActiveMQConnectionFactory connectionFactory =
-                createActiveMQConnectionFactory();
-        pooledConnectionFactory =
-                createPooledConnectionFactory(connectionFactory);
-        // Establish a connection for the producer.
-        producerConnection = pooledConnectionFactory
-                .createConnection();
-        producerConnection.start();
 
-        // Create a session.
-        producerSession = producerConnection
-                .createSession(false, Session.AUTO_ACKNOWLEDGE);
+        producerSession = createSessionMethod();
+
 
         // Create a queue named "MyQueue".
-        producerDestination = producerSession
-                .createQueue(myQueue);
+        Destination producerDestination = producerSession.createQueue(myQueue);
 
         // Create a producer from the session to the queue.
-        messageProducer = producerSession
-                .createProducer(producerDestination);
+        messageProducer = producerSession.createProducer(producerDestination);
+
         messageProducer.setDeliveryMode(DeliveryMode.NON_PERSISTENT);
 
         watch = StopWatch.createStarted();
 
         return messageProducer;
+    }
+
+    public Session createSessionMethod() throws JMSException {
+        ActiveMQConnectionFactory connectionFactory = createActiveMQConnectionFactory();
+
+        pooledConnectionFactory = createPooledConnectionFactory(connectionFactory);
+
+        // Establish a connection for the producer.
+        producerConnection = pooledConnectionFactory.createConnection();
+        producerConnection.start();
+        // Create a session.
+        return producerConnection.createSession(false, Session.AUTO_ACKNOWLEDGE);
     }
 
     public long sendMessage(Pojo pojo) {
@@ -95,13 +96,12 @@ public class Producer {
         } else {
             try {
                 messageProducer.send(producerSession.createTextMessage(property.getValueFromProperty("poison")));
-                logger.info("poison pill sent");
+                logger.info("poison pill sent into sendMessage");
             } catch (JMSException e) {
                 throw new SendMessageException(e);
             }
         }
         return counter;
-
     }
 
     public PooledConnectionFactory stop() throws JMSException {
@@ -109,10 +109,10 @@ public class Producer {
         logger.info("counter = {}, time = {}, rps = {}", counter, watch.getTime(TimeUnit.SECONDS), rps);
         try {
             messageProducer.send(producerSession.createTextMessage(property.getValueFromProperty("poison")));
+            logger.info("poison pill sent");
         } catch (JMSException e) {
             throw new SendMessageException(e);
         }
-        logger.info("poison pill sent");
         messageProducer.close();
         producerSession.close();
         producerConnection.close();
@@ -120,7 +120,7 @@ public class Producer {
         return pooledConnectionFactory;
     }
 
-    private PooledConnectionFactory
+    public PooledConnectionFactory
     createPooledConnectionFactory(ActiveMQConnectionFactory connectionFactory) {
         // Create a pooled connection factory.
         pooledConnectionFactory =
@@ -130,9 +130,9 @@ public class Producer {
         return pooledConnectionFactory;
     }
 
-    private ActiveMQConnectionFactory createActiveMQConnectionFactory() {
+    public ActiveMQConnectionFactory createActiveMQConnectionFactory() {
         // Create a connection factory.
-        final ActiveMQConnectionFactory connectionFactory =
+        ActiveMQConnectionFactory connectionFactory =
                 new ActiveMQConnectionFactory(property.getValueFromProperty("endpoint"));
 
         // Pass the sign-in credentials.

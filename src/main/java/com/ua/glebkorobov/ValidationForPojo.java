@@ -24,30 +24,28 @@ import java.util.Set;
 
 public class ValidationForPojo {
 
-    String invalidWriterNameFile = "invalid.csv";
-    String validWriterNameFile = "valid.csv";
+    String invalidPojoWriterFile = "invalid.csv";
+    String validPojoWriterFile = "valid.csv";
 
-    private static final GetProperty property = new GetProperty("myProp.properties");
+    private final GetProperty property = new GetProperty("myProp.properties");
 
-    private static final String POISON_PILL = property.getValueFromProperty("poison");
+    private final String poisonPill = property.getValueFromProperty("poison");
 
-    private static final Logger logger = LogManager.getLogger(ValidationForPojo.class);
+    private final Logger logger = LogManager.getLogger(ValidationForPojo.class);
 
 //    private CSVWriter invalidWriter;
 //    private CSVWriter validWriter;
 
     public String valid() throws JMSException {
-        ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
-        Validator validator = factory.getValidator();
+        Validator validator = createValidator();
+
         logger.info("Created validator");
 
         Consumer consumer = new Consumer();
         consumer.createConnection();
         logger.info("Created consumer and connection");
 
-        ObjectMapper mapper = JsonMapper.builder()
-                .addModule(new JavaTimeModule())
-                .build();
+        ObjectMapper mapper = createMapper();
 
         CSVWriter validWriter = createValidCsvWriter();
         CSVWriter invalidWriter = createInValidCsvWriter();
@@ -57,10 +55,10 @@ public class ValidationForPojo {
 
         while (true) {
             String message = consumer.receiveMessage();
-            if (message.equals(POISON_PILL)) {
-                logger.info("Got poison pill : {}", POISON_PILL);
+            if (message.equals(poisonPill)) {
+                logger.info("Got poison pill : {}", poisonPill);
                 consumer.closeConnection();
-                return POISON_PILL;
+                return poisonPill;
             }
 
             Pojo pojo;
@@ -80,9 +78,21 @@ public class ValidationForPojo {
 
     }
 
-    private CSVWriter createInValidCsvWriter() {
+
+    public ObjectMapper createMapper() {
+        return JsonMapper.builder()
+                .addModule(new JavaTimeModule())
+                .build();
+    }
+
+    public Validator createValidator() {
+        ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
+        return factory.getValidator();
+    }
+
+    public CSVWriter createInValidCsvWriter() {
         try {
-            return new CSVWriter(new FileWriter(invalidWriterNameFile));
+            return new CSVWriter(new FileWriter(invalidPojoWriterFile));
         } catch (IOException e) {
             throw new CsvWriteException(e);
         }
@@ -90,15 +100,16 @@ public class ValidationForPojo {
 
     public CSVWriter createValidCsvWriter() {
         try {
-            return new CSVWriter(new FileWriter(validWriterNameFile));
+            return new CSVWriter(new FileWriter(validPojoWriterFile));
         } catch (IOException e) {
             throw new CsvWriteException(e);
         }
     }
 
     public int writeInvalidFile(Pojo pojo, Set<ConstraintViolation<Pojo>> violations, CSVWriter invalidWriter) {
-        String error = Arrays.toString(errors(violations));
-        invalidWriter.writeNext(new String[]{pojo.getName(), String.valueOf(pojo.getCount()), "errors " + error});
+        String error = Arrays.toString(createErrors(violations));
+        invalidWriter.writeNext(new String[]{pojo.getName(), String.valueOf(pojo.getCount()),
+                "errors " + error});
 
         return violations.size();
     }
@@ -110,7 +121,7 @@ public class ValidationForPojo {
     }
 
 
-    private static String[] errors(Set<ConstraintViolation<Pojo>> violations) {
+    public String[] createErrors(Set<ConstraintViolation<Pojo>> violations) {
         String[] arr = new String[violations.size()];
         int i = 0;
         for (ConstraintViolation<Pojo> violation : violations) {
