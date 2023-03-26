@@ -1,22 +1,22 @@
 package com.ua.glebkorobov;
 
+import com.opencsv.CSVWriter;
 import com.ua.glebkorobov.dto.Pojo;
 import com.ua.glebkorobov.exceptions.CsvWriteException;
 import jakarta.validation.ConstraintViolation;
-import jakarta.validation.Validation;
 import jakarta.validation.Validator;
-import jakarta.validation.ValidatorFactory;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
 
 class ValidationForPojoTest {
-
-    private static final GetProperty property = new GetProperty("myProp.properties");
 
 
     @Test
@@ -30,19 +30,12 @@ class ValidationForPojoTest {
 
         ValidationForPojo validation = new ValidationForPojo();
 
-        ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
-        Validator validator = factory.getValidator();
-
-        Set<ConstraintViolation<Pojo>> violations = validator.validate(pojoTest1);
         assertEquals(2, validation.valid(pojoTest1).size());
 
-        violations = validator.validate(pojoTest2);
         assertEquals(1, validation.valid(pojoTest2).size());
 
-        violations = validator.validate(pojoTest3);
         assertEquals(1, validation.valid(pojoTest3).size());
 
-        violations = validator.validate(pojoTest4);
         assertEquals(3, validation.valid(pojoTest4).size());
 
 
@@ -106,4 +99,17 @@ class ValidationForPojoTest {
         assertEquals(0, validation.createErrors(violations).length);
 
     }
+
+
+//    @Test
+//    void name() {
+//        CSVWriter csvWriter = mock(CSVWriter.class);
+//        doNothing().when(csvWriter).writeNext(any());
+//
+//        Pojo pojo = new Pojo("Gleb", 123, LocalDateTime.now());
+//
+//        ValidationForPojo validation = new ValidationForPojo();
+//
+//        validation
+//    }
 }

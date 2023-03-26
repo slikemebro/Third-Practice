@@ -40,9 +40,11 @@ public class ValidationForPojo {
         logger.info("Created consumer and connection");
 
         ObjectMapper mapper = createMapper();
+        logger.info("Created mapper");
 
         CSVWriter validWriter = createValidCsvWriter();
         CSVWriter invalidWriter = createInValidCsvWriter();
+        logger.info("Created CsvWriters");
 
         invalidWriter.writeNext(new String[]{"Name", "Count", "Errors"});
         validWriter.writeNext(new String[]{"Name", "Count"});

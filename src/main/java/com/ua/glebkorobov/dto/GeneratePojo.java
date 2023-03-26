@@ -26,7 +26,7 @@ public class GeneratePojo {
 
     public AtomicInteger generateAndSendMessages(Producer producer, String count) throws JMSException {
 
-        logger.info("generate stream of pojo");
+        logger.info("generate and send stream of pojo");
 
         AtomicInteger atomicInteger = new AtomicInteger();
 
@@ -39,6 +39,8 @@ public class GeneratePojo {
                 });
 
         producer.stop();
+        logger.info("Producer was stopped");
+
 
         return atomicInteger;
     }
