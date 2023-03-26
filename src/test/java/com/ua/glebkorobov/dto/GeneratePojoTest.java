@@ -6,6 +6,8 @@ import org.mockito.Mockito;
 
 import javax.jms.JMSException;
 
+import java.security.NoSuchAlgorithmException;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.any;
 
@@ -13,7 +15,7 @@ class GeneratePojoTest {
 
 
     @Test
-    void generateMessagesTest() throws JMSException {
+    void generateMessagesTest() throws JMSException, NoSuchAlgorithmException {
         Producer producer = Mockito.mock(Producer.class);
 
         String count = "3";

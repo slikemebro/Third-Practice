@@ -6,6 +6,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.jms.JMSException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -15,6 +17,12 @@ public class GeneratePojo {
 
     private static final Logger logger = LogManager.getLogger(GeneratePojo.class);
 
+    private final Random rand = SecureRandom.getInstanceStrong();
+
+    public GeneratePojo() throws NoSuchAlgorithmException {
+        //this constructor just for exception for random
+    }
+
 
     public AtomicInteger generateAndSendMessages(Producer producer, String count) throws JMSException {
 
@@ -22,7 +30,7 @@ public class GeneratePojo {
 
         AtomicInteger atomicInteger = new AtomicInteger();
 
-        Stream.generate(() -> new Pojo(RandomStringUtils.randomAlphabetic(4, 15), new Random().nextLong(),
+        Stream.generate(() -> new Pojo(RandomStringUtils.randomAlphabetic(4, 15), this.rand.nextLong(),
                         LocalDateTime.now()))
                 .limit(Long.parseLong(count))
                 .forEach(p -> {
